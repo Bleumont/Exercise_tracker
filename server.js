@@ -76,18 +76,21 @@ app.post(
   }
 );
 
-app.get('/api/exercise/log/:userId', (req, res) => {
+app.get('/api/exercise/log/:userId/:from?/:to?/:limit?', (req, res) => {
   let user = req.params.userId;
+  let resObj = {};
+  let { _, from, to, limit } = request.body;
   EXERCISE.find({ userID: user }, (err, result) => {
     if (err) throw err;
-    res.json(result);
+    resObj['log'] = result;
   });
-});
-app.get('/api/exercise/log', (req, res) => {
   EXERCISE.find({}).countDocuments((err, count) => {
     if (err) throw err;
-    res.json({ count });
+    resObj['count'] = count;
   });
+  if (!from && !to && !limit) {
+    res.json(resObj);
+  }
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {
