@@ -90,6 +90,16 @@ app.get('/api/exercise/log/:userId/:from?/:to?/:limit?', (req, res) => {
   });
   if (!from && !to && !limit) {
     res.json(resObj);
+  } else {
+    EXERCISE.find()
+      .where('date')
+      .gt(from)
+      .lt(to)
+      .limit(limit)
+      .exec((err, result) => {
+        if (err) throw err;
+        res.json(result);
+      });
   }
 });
 
