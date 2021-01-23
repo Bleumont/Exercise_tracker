@@ -58,17 +58,19 @@ app.post(
   '/api/exercise/add',
   bodyParser.urlencoded({ extended: false }),
   (req, res) => {
-    let userId = req.body.userId;
+    console.log(req.body);
+    let userID = req.body.userId;
     let description = req.body.description;
     let duration = req.body.duration;
     let date = req.body.date || Date.now();
 
     const exe = new EXERCISE({
-      userId,
+      userID,
       description,
       duration,
       date,
     });
+    console.log(exe);
     exe.save((err) => {
       if (err) throw err;
       res.json({ user: exe });
@@ -76,31 +78,33 @@ app.post(
   }
 );
 
-app.get('/api/exercise/log/:userId/:from?/:to?/:limit?', (req, res) => {
-  let user = req.params.userId;
+app.get('/api/exercise/log', (req, res) => {
+  let { userId, from, to, limit } = req.query;
+
   let resObj = {};
-  let { _, from, to, limit } = request.body;
-  EXERCISE.find({ userID: user }, (err, result) => {
+  EXERCISE.where({ userID: userId }).exec((err, result) => {
     if (err) throw err;
     resObj['log'] = result;
+    return;
   });
   EXERCISE.find({}).countDocuments((err, count) => {
     if (err) throw err;
     resObj['count'] = count;
+
+    if (Object.keys(req.query).length <= 1) {
+      res.send(resObj);
+    } else {
+      EXERCISE.find()
+        .where('date')
+        .gt(from)
+        .lt(to)
+        .limit(+limit)
+        .exec((err, result) => {
+          if (err) throw err;
+          res.json(result);
+        });
+    }
   });
-  if (!from && !to && !limit) {
-    res.json(resObj);
-  } else {
-    EXERCISE.find()
-      .where('date')
-      .gt(from)
-      .lt(to)
-      .limit(limit)
-      .exec((err, result) => {
-        if (err) throw err;
-        res.json(result);
-      });
-  }
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {
