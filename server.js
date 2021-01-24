@@ -10,15 +10,15 @@ mongoose.connect(process.env.DB_URI, {
   useUnifiedTopology: true,
   useFindAndModify: false,
 });
-
-const userSchema = mongoose.Schema({
-  username: String,
-});
 const exSchema = mongoose.Schema({
-  userID: { type: String, required: true },
   description: { type: String, required: true },
   duration: { type: Number, required: true },
   date: Date,
+});
+
+const userSchema = mongoose.Schema({
+  username: String,
+  log: [exSchema],
 });
 
 const USER = mongoose.model('User', userSchema);
@@ -48,7 +48,6 @@ app.post(
 app.get('/api/exercise/users', (req, res) => {
   USER.find((err, result) => {
     if (err) throw err;
-    // let arr = new Array(result);
     res.send(result);
     return;
   });
@@ -58,51 +57,67 @@ app.post(
   '/api/exercise/add',
   bodyParser.urlencoded({ extended: false }),
   (req, res) => {
-    console.log(req.body);
-    let userID = req.body.userId;
-    let description = req.body.description;
-    let duration = req.body.duration;
-    let date = req.body.date || Date.now();
-
+    let ndate = new Date();
     const exe = new EXERCISE({
-      userID,
-      description,
-      duration,
-      date,
+      description: req.body.description,
+      duration: req.body.duration,
+      date: req.body.date || ndate,
     });
-    console.log(exe);
-    exe.save((err) => {
-      if (err) throw err;
-      res.json({ user: exe });
-    });
+
+    USER.findByIdAndUpdate(
+      req.body.userId,
+      { $push: { log: exe } },
+      { new: true },
+      (err, updatedUser) => {
+        if (!err) {
+          const resObj = {
+            _id: updatedUser.id,
+            username: updatedUser.username,
+            description: exe.description,
+            duration: exe.duration,
+            date: exe.date.toString().substring(0, 15),
+          };
+          res.json(resObj);
+        }
+      }
+    );
   }
 );
 
-app.get('/api/exercise/log', (req, res) => {
-  let { userId, from, to, limit } = req.query;
+app.get('/api/exercise/log', (request, response) => {
+  USER.findById(request.query.userId, (error, result) => {
+    if (!error) {
+      let responseObject = result;
 
-  let resObj = {};
-  EXERCISE.where({ userID: userId }).exec((err, result) => {
-    if (err) throw err;
-    resObj['log'] = result;
-    return;
-  });
-  EXERCISE.find({}).countDocuments((err, count) => {
-    if (err) throw err;
-    resObj['count'] = count;
+      if (request.query.from || request.query.to) {
+        let fromDate = new Date(0);
+        let toDate = new Date();
 
-    if (Object.keys(req.query).length <= 1) {
-      res.send(resObj);
-    } else {
-      EXERCISE.find()
-        .where('date')
-        .gt(from)
-        .lt(to)
-        .limit(+limit)
-        .exec((err, result) => {
-          if (err) throw err;
-          res.json(result);
+        if (request.query.from) {
+          fromDate = new Date(request.query.from);
+        }
+
+        if (request.query.to) {
+          toDate = new Date(request.query.to);
+        }
+
+        fromDate = fromDate.getTime();
+        toDate = toDate.getTime();
+
+        responseObject.log = responseObject.log.filter((session) => {
+          let sessionDate = new Date(session.date).getTime();
+
+          return sessionDate >= fromDate && sessionDate <= toDate;
         });
+      }
+
+      if (request.query.limit) {
+        responseObject.log = responseObject.log.slice(0, request.query.limit);
+      }
+
+      responseObject = responseObject.toJSON();
+      responseObject['count'] = result.log.length;
+      response.json(responseObject);
     }
   });
 });
