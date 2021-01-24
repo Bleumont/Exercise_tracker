@@ -1,5 +1,7 @@
 # [Exercise Tracker](https://www.freecodecamp.org/learn/apis-and-microservices/apis-and-microservices-projects/exercise-tracker)
 
+Node.JS app built with Express and MongoDB (mongoose)
+
 POST to /api/exercise/new-user with form data username to create a new user. The returned response will be an object with username and \_id properties.
 Passed
 
